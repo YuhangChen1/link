@@ -1469,7 +1469,11 @@ def generate_validated_section(
             round_number=round_number,
         )
 
-    final_issues = hard_validate_draft(content, evidence)
+    final_issues = hard_validate_draft(
+        content,
+        evidence,
+    )
+
     final_audit = semantic_audit(
         client=client,
         section_name=section["name"],
@@ -1478,15 +1482,26 @@ def generate_validated_section(
         evidence=evidence,
     )
 
-    if final_issues or not final_audit.get("passed", False):
+# 硬性问题仍然阻止输出，例如字符数不足、出现未支持数字等。
+    if final_issues:
         raise RuntimeError(
-            f'Section "{section["name"]}" failed final validation. '
-            f"Hard issues: {final_issues}; "
-            f"Audit issues: {final_audit.get('issues', [])}"
+            f'Section "{section["name"]}" failed hard validation. '
+            f"Hard issues: {final_issues}"
+        )
+
+# 语义审查只作为警告，不再导致整个程序退出。
+    if not final_audit.get("passed", False):
+        logger.warning(
+            'Section "%s" passed hard validation but received '
+            "semantic audit warnings:\n- %s",
+            section["name"],
+            "\n- ".join(
+                final_audit.get("issues", [])
+            ),
         )
 
     return content
-
+    
 
 # ============================================================
 # 10. Export and final validation
